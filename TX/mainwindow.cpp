@@ -229,12 +229,46 @@ void MainWindow::convertMessage(QString data, PIGO_Message_IDs_e msg_id){
 
     int data_int = data.toInt();
 
+    one_byte_uint_cmd_t uint8_cmd =
+    {
+        *((uint8_t*) &data_int),
+    };
+
+
     mavlink_message_t encoded_msg;
     memset(&encoded_msg, 0x00, sizeof(mavlink_message_t));
 
-    uint8_t encoderStatus = Mavlink_airside_encoder(msg_id, &encoded_msg, (const uint8_t*) &data_int);
+    uint8_t encoderStatus = Mavlink_airside_encoder(msg_id, &encoded_msg, (const uint8_t*) &uint8_cmd);
 
-    serial->write(mavlinkToByteArray(encoded_msg));
+
+
+    if (msg_id == MESSAGE_ID_WAYPOINT_MODIFY_PATH_CMD){
+        PIGO_Message_IDs_e *returnedType{};
+        uint8_t *decodedData{};
+
+        mavlink_decoding_status_t decodeStatus = Mavlink_airside_decoder(returnedType, *(uint8_t*)&encoded_msg, decodedData);
+
+        if (decodeStatus == MAVLINK_DECODING_OKAY){
+            qDebug() << "Decoded Fine";
+        }
+        else{
+            qDebug() << "NOPE DECODING";
+        }
+
+        int decodedDataInt = *decodedData;
+
+        if (decodedDataInt == data_int){
+            qDebug() << "Return was Fine too";
+        }
+        else{
+            qDebug() << "NOPE RETURNING";
+        }
+    }
+
+
+
+
+//    serial->write(mavlinkToByteArray(encoded_msg));
 }
 
 void MainWindow::convertMessage(QList<QString> data, PIGO_Message_IDs_e msg_id){

@@ -143,7 +143,7 @@ mavlink_encoding_status_t Mavlink_airside_encoder(PIGO_Message_IDs_e msgID,
             for (int r = 0; r < message_len - 2; r++)
             {
                 message_buffer[r] = ptr_in_byte[r + i];
-                //printf("copying byte: %d / %d   |   current byte : %hhx\n", r, message_len, message_buffer[r]);
+                std::cout << "copying byte: " << r << " / " << message_len << "    |    current byte : " << std::hex << (int)message_buffer[r] << std::dec << std::endl;
             }
             break;
         }
@@ -159,7 +159,8 @@ mavlink_encoding_status_t Mavlink_airside_encoder(PIGO_Message_IDs_e msgID,
         for (int i = 0; i < 2; i++)
         {
             message_buffer[message_len - 2 + i] = ptr_in_byte[start_index - 2 + i]; // load the last 2 checksum bytes
-            //printf("copying byte: %d / %d   |   current byte : %hhx\n", message_len-2+i, message_len, message_buffer[message_len-2+i]);
+            std::cout << "copying byte: " << message_len - 2 + i << " / " << message_len << "  |   "
+                      << "current byte : " << std::hex << (int)message_buffer[message_len - 2 + i] << std::endl;
         }
         memcpy(message, message_buffer, message_len);
 
