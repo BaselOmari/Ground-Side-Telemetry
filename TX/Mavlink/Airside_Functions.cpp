@@ -140,10 +140,12 @@ mavlink_encoding_status_t Mavlink_airside_encoder(PIGO_Message_IDs_e msgID,
         if (ptr_in_byte[i] == 0xfd) //0xfd, starting byte
         {
             start_index = i;
+            std::cout << "i: " << i << std::endl;
             for (int r = 0; r < message_len - 2; r++)
             {
                 message_buffer[r] = ptr_in_byte[r + i];
-                std::cout << "copying byte: " << r << " / " << message_len << "    |    current byte : " << std::hex << (int)message_buffer[r] << std::dec << std::endl;
+                // std::cout << "copying byte: " << r << " / " << message_len << "    |    current byte : " << std::hex << (int)message_buffer[r] << std::dec << std::endl;
+                std::cout << "copying byte: " << r << " / " << message_len << "    |    current byte : " << message_buffer[r] << std::endl;
             }
             break;
         }
@@ -160,7 +162,7 @@ mavlink_encoding_status_t Mavlink_airside_encoder(PIGO_Message_IDs_e msgID,
         {
             message_buffer[message_len - 2 + i] = ptr_in_byte[start_index - 2 + i]; // load the last 2 checksum bytes
             std::cout << "copying byte: " << message_len - 2 + i << " / " << message_len << "  |   "
-                      << "current byte : " << std::hex << (int)message_buffer[message_len - 2 + i] << std::endl;
+                      << "current byte : " << std::hex << (int)message_buffer[message_len - 2 + i] << std::dec << std::endl;
         }
         memcpy(message, message_buffer, message_len);
 
@@ -345,3 +347,22 @@ mavlink_decoding_status_t Mavlink_airside_decoder(PIGO_Message_IDs_e *type, uint
 
     return MAVLINK_DECODING_INCOMPLETE;
 }
+
+// int main()
+// {
+//     int data_int = 3;
+
+//     one_byte_uint_cmd_t uint8_cmd =
+//         {
+//             *((uint8_t *)&data_int),
+//         };
+
+//     mavlink_message_t encoded_msg;
+//     memset(&encoded_msg, 0x00, sizeof(mavlink_message_t));
+
+//     uint8_t encoderStatus = Mavlink_airside_encoder(MESSAGE_ID_WAYPOINT_MODIFY_PATH_CMD, &encoded_msg, (const uint8_t *)&uint8_cmd);
+
+//     std::cout << "DONE" << std::endl;
+
+//     return 0;
+// }
