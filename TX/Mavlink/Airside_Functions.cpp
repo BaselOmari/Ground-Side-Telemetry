@@ -170,3 +170,177 @@ mavlink_encoding_status_t Mavlink_airside_encoder(PIGO_Message_IDs_e msgID,
         return MAVLINK_ENCODING_FAIL;
     }
 }
+
+mavlink_decoding_status_t Mavlink_airside_decoder(PIGO_Message_IDs_e *type, uint8_t incomingByte, uint8_t *telemetryData)
+{
+    int channel = MAVLINK_COMM_0; //mavlink default one channel
+    PIGO_Message_IDs_e decoded_message_type = MESSAGE_ID_NONE;
+    mavlink_decoding_status_t decoding_status = MAVLINK_DECODING_INCOMPLETE;
+
+    mavlink_status_t status;
+    memset(&status, 0x00, sizeof(mavlink_status_t));
+
+    mavlink_message_t decoded_msg;
+    memset(&decoded_msg, 0x00, sizeof(mavlink_message_t));
+
+    // this function parses the incoming bytes, and the decoded_msg will get filled when the full message is received
+    // more details about the parser function: http://docs.ros.org/en/indigo/api/mavlink/html/include__v2_80_2mavlink__helpers_8h.html#ad91e8323cefc65965574c09e72365d7d
+    uint8_t message_received = mavlink_parse_char(channel, incomingByte, &decoded_msg, &status);
+
+    if (message_received)
+    {
+        if (telemetryData == NULL)
+        {
+            return MAVLINK_DECODING_FAIL;
+        }
+
+        switch (decoded_msg.msgid)
+        {
+        case MAVLINK_MSG_ID_GLOBAL_POSITION_INT: // ID for GLOBAL_POSITION_INT, 33
+        {
+            mavlink_global_position_int_t global_position;
+            memset(&global_position, 0x00, sizeof(mavlink_global_position_int_t));
+
+            mavlink_msg_global_position_int_decode(&decoded_msg, &global_position);
+            uint32_t warg_ID = global_position.time_boot_ms;
+
+            // we are borrowing the GPS struct to transfer our own commands, the global_position.time_boot_ms is used to store our message ID
+            // the follow code first seperates the messages into different catagories based on their IDs, then completes the decoding process
+            switch (warg_ID)
+            {
+            case MESSAGE_ID_GPS_LANDING_SPOT:
+            {
+                PIGO_GPS_LANDING_SPOT_t landing_spot;
+                memset(&landing_spot, 0x00, sizeof(PIGO_GPS_LANDING_SPOT_t));
+
+                landing_spot.latitude = global_position.lat;
+                landing_spot.longitude = global_position.lon;
+                landing_spot.altitude = global_position.alt;
+                landing_spot.landingDirection = global_position.relative_alt;
+
+                memcpy((void *)telemetryData, (void *)&landing_spot, sizeof(PIGO_GPS_LANDING_SPOT_t));
+
+                decoded_message_type = (PIGO_Message_IDs_e)warg_ID;
+                *type = decoded_message_type;
+
+                return MAVLINK_DECODING_OKAY;
+            }
+
+            case MESSAGE_ID_WAYPOINTS:
+            case MESSAGE_ID_HOMEBASE:
+            {
+                PIGO_WAYPOINTS_t waypoints;
+                memset(&waypoints, 0x00, sizeof(PIGO_WAYPOINTS_t));
+
+                waypoints.latitude = global_position.lat;
+                waypoints.longitude = global_position.lon;
+                waypoints.altitude = global_position.alt;
+                waypoints.turnRadius = global_position.relative_alt;
+                waypoints.waypointType = global_position.hdg;
+
+                memcpy((void *)telemetryData, (void *)&waypoints, sizeof(PIGO_WAYPOINTS_t));
+
+                decoded_message_type = (PIGO_Message_IDs_e)warg_ID;
+                *type = decoded_message_type;
+
+                return MAVLINK_DECODING_OKAY;
+            }
+
+            case MESSAGE_ID_NUM_WAYPOINTS:
+            case MESSAGE_ID_HOLDING_ALTITUDE:
+            case MESSAGE_ID_HOLDING_TURN_RADIUS:
+            case MESSAGE_ID_PATH_MODIFY_NEXT_LD:
+            case MESSAGE_ID_PATH_MODIFY_PREV_LD:
+            case MESSAGE_ID_PATH_MODIFY_LD:
+            {
+                four_bytes_int_cmd_t command;
+                memset(&command, 0x00, sizeof(four_bytes_int_cmd_t));
+
+                command.cmd = global_position.lat;
+
+                memcpy((void *)telemetryData, (void *)&command, sizeof(four_bytes_int_cmd_t));
+
+                decoded_message_type = (PIGO_Message_IDs_e)warg_ID;
+                *type = decoded_message_type;
+
+                return MAVLINK_DECODING_OKAY;
+            }
+
+            case MESSAGE_ID_GIMBAL_CMD:
+            {
+                PIGO_GIMBAL_t command;
+                memset(&command, 0x00, sizeof(PIGO_GIMBAL_t));
+
+                command.pitch = global_position.lat;
+                command.yaw = global_position.lon;
+
+                memcpy((void *)telemetryData, (void *)&command, sizeof(PIGO_GIMBAL_t));
+
+                decoded_message_type = (PIGO_Message_IDs_e)warg_ID;
+                *type = decoded_message_type;
+
+                return MAVLINK_DECODING_OKAY;
+            }
+
+            case MESSAGE_ID_GROUND_CMD:
+            {
+                PIGO_GROUND_COMMAND_t command;
+                memset(&command, 0x00, sizeof(PIGO_GROUND_COMMAND_t));
+
+                command.heading = global_position.lat;
+                command.latestDistance = global_position.lon;
+
+                memcpy((void *)telemetryData, (void *)&command, sizeof(PIGO_GROUND_COMMAND_t));
+
+                decoded_message_type = (PIGO_Message_IDs_e)warg_ID;
+                *type = decoded_message_type;
+
+                return MAVLINK_DECODING_OKAY;
+            }
+
+            case MESSAGE_ID_WAYPOINT_MODIFY_PATH_CMD:
+            case MESSAGE_ID_WAYPOINT_NEXT_DIRECTIONS_CMD:
+            case MESSAGE_ID_HOLDING_TURN_DIRECTION:
+            {
+                one_byte_uint_cmd_t command;
+                memset(&command, 0x00, sizeof(one_byte_uint_cmd_t));
+
+                command.cmd = global_position.hdg;
+
+                memcpy((void *)telemetryData, (void *)&command, sizeof(one_byte_uint_cmd_t));
+
+                decoded_message_type = (PIGO_Message_IDs_e)warg_ID;
+                *type = decoded_message_type;
+
+                return MAVLINK_DECODING_OKAY;
+            }
+
+            case MESSAGE_ID_BEGIN_LANDING:
+            case MESSAGE_ID_BEGIN_TAKEOFF:
+            case MESSAGE_ID_INITIALIZING_HOMEBASE:
+            {
+                single_bool_cmd_t isLanded;
+                memset(&isLanded, 0x00, sizeof(single_bool_cmd_t));
+
+                isLanded.cmd = global_position.hdg;
+
+                memcpy((void *)telemetryData, (void *)&isLanded, sizeof(single_bool_cmd_t));
+
+                decoded_message_type = (PIGO_Message_IDs_e)warg_ID;
+                *type = decoded_message_type;
+
+                return MAVLINK_DECODING_OKAY;
+            }
+
+            default:
+                return MAVLINK_DECODING_FAIL;
+            } // end of inner switch
+        }
+
+        default:
+            return MAVLINK_DECODING_FAIL;
+        } // end of outter switch
+    }     // if message received
+
+    return MAVLINK_DECODING_INCOMPLETE;
+}

@@ -157,5 +157,6 @@ struct POGI_Timestamp_t
     uint8_t encoderStatus = Mavlink_airside_encoder(MESSAGE_ID_GPS, &encoded_msg, (const uint8_t*) &global_position);
  */
 mavlink_encoding_status_t Mavlink_airside_encoder(PIGO_Message_IDs_e id, mavlink_message_t *message, const uint8_t *struct_ptr);
+mavlink_decoding_status_t Mavlink_airside_decoder(PIGO_Message_IDs_e *type, uint8_t incomingByte, uint8_t *telemetryData);
 
 #endif //AIRSIDE_FUNCTIONS_HPP
